@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kahoot-Style Overwatch Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* Custom styles for Kahoot-style aesthetics and mobile responsiveness */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem; /* Add padding for small screens */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+        .quiz-container {
+            background-color: #ffffff;
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Softer shadow */
+            padding: 2rem;
+            /* Removed max-width to allow it to take full width */
+            width: 100%; /* Take full width within its parent's padding */
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        @media (max-width: 640px) {
+            .quiz-container {
+                padding: 1.5rem; /* Adjust padding for very small screens */
+                gap: 1rem;
+            }
+        }
+
+        /* Header for Question and Score */
+        .quiz-header {
+            display: flex;
+            justify-content: space-between; /* Spreads items evenly */
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 1.5rem;
+            width: 100%; /* Header takes 100% width of its container */
+            gap: 0.5rem; /* Space between header elements */
+        }
+        .quiz-header .question-count,
+        .quiz-header .score-count {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #475569;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .quiz-header .user-info {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #64748b;
+            white-space: nowrap; /* Prevent wrapping */
+            flex-grow: 1; /* Allows it to take available space in the middle */
+            text-align: center;
+        }
+        .quiz-header .high-score-info {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
+
+        /* Login Button */
+        .login-button {
+            background-color: transparent; /* No background */
+            color: #475569; /* Match header text color */
+            padding: 0; /* No padding */
+            border-radius: 0; /* No border radius */
+            font-size: 2rem; /* Make icon larger for visibility */
+            font-weight: normal; /* No bold */
+            cursor: pointer;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .login-button:hover {
+            background-color: transparent; /* Ensure no background on hover */
+            color: #1d4ed8; /* Darker blue on hover for icon */
+        }
+        @media (max-width: 640px) {
+            .login-button {
+                font-size: 1.5rem; /* Adjust icon size for small screens */
+            }
+        }
+
+        /* Scenario Box (Question Display) */
+        .scenario-box {
+            background-color: #3b82f6; /* Kahoot blue */
+            color: white;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            font-size: 2rem; /* Larger question text */
+            font-weight: 800;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px; /* Ensure a good height */
+            text-align: center;
+            box-shadow: 0 8px 15px rgba(59, 130, 246, 0.4);
+            position: relative; /* Needed for hotpoint positioning */
+            overflow: hidden; /* Ensure hotpoints don't overflow rounded corners */
+        }
+        @media (max-width: 640px) {
+            .scenario-box {
+                font-size: 1.5rem;
+                padding: 1.5rem;
+                min-height: 120px;
+            }
+        }
+        .scenario-box img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 1rem; /* Match scenario box border-radius */
+        }
+
+        /* Hotpoint specific styles */
+        .hotpoint-container {
+            position: relative;
+            width: 100%;
+            height: auto;
+            min-height: 150px; /* Ensure it has height for hotpoints */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .hotpoint-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .hotpoint {
+            background-color: rgba(255, 255, 255, 0.7); /* Semi-transparent white */
+            border: 4px solid #3b82f6; /* Blue border */
+            color: #333;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            z-index: 10; /* Ensure hotpoints are above image */
+            position: absolute; /* Position relative to the image container */
+            border-radius: 50%; /* Make it a circle */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .hotpoint:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .hotpoint.selected {
+            border-color: white;
+            box-shadow: 0 0 0 5px #3b82f6;
+        }
+        .hotpoint.correct {
+            background-color: #10b981; /* Green */
+            border-color: #d1fae5;
+            color: white;
+        }
+        .hotpoint.incorrect {
+            background-color: #dc2626; /* Red */
+            border-color: #fee2e2;
+            color: white;
+        }
+
+
+        /* Answer Buttons Container (for regular questions) */
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns */
+            gap: 1rem; /* Space between buttons */
+            margin-top: 1.5rem;
+        }
+        @media (max-width: 640px) {
+            .options-grid {
+                grid-template-columns: 1fr; /* Stack on small screens */
+            }
+        }
+
+        /* Individual Answer Button Styles */
+        .options-grid button {
+            color: white;
+            padding: 2rem 1.5rem; /* Larger padding for bigger buttons */
+            border-radius: 0.75rem; /* Rounded corners */
+            cursor: pointer;
+            font-size: 1.5rem; /* Large font for options */
+            font-weight: 700;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            display: flex; /* Use flex to center text vertically */
+            justify-content: center;
+            align-items: center;
+            min-height: 100px; /* Ensure consistent button height */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .options-grid button:hover:not(:disabled) {
+            transform: translateY(-5px); /* Lift effect on hover */
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+        }
+        .options-grid button:disabled {
+            opacity: 0.6; /* Dim disabled buttons */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Kahoot-style button colors */
+        .btn-red { background-color: #ef4444; } /* Red */
+        .btn-blue { background-color: #3b82f6; } /* Blue */
+        .btn-yellow { background-color: #eab308; } /* Yellow */
+        .btn-green { background-color: #22c55e; } /* Green */
+
+        /* Feedback and selection styles */
+        .options-grid button.selected {
+            border: 5px solid white; /* White border for selected */
+            box-shadow: 0 0 0 5px #3b82f6, 0 4px 10px rgba(0, 0, 0, 0.3); /* Outer blue glow */
+        }
+        .options-grid button.correct {
+            background-color: #10b981; /* Darker green for correct */
+            border: 5px solid #d1fae5; /* Light green border */
+            box-shadow: 0 0 0 5px #10b981, 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        .options-grid button.incorrect {
+            background-color: #dc2626; /* Darker red for incorrect */
+            border: 5px solid #fee2e2; /* Light red border */
+            box-shadow: 0 0 0 5px #dc2626, 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .feedback-text {
+            font-size: 1.5rem; /* Larger feedback text */
+            margin-top: 1.5rem;
+            font-weight: 700;
+        }
+        .feedback-text.correct {
+            color: #10b981; /* Green */
+        }
+        .feedback-text.incorrect {
+            color: #ef4444; /* Red */
+        }
+
+        /* Stage/Quiz End Buttons */
+        .action-button {
+            background-color: #3b82f6; /* Blue button */
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: 700;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); /* Blue shadow */
+            border: none;
+            width: 100%; /* Full width button */
+            max-width: 280px; /* Limit max width for larger screens */
+            align-self: center; /* Center the button */
+            margin-top: 1.5rem;
+        }
+        .action-button:hover:not(:disabled) {
+            background-color: #2563eb; /* Darker blue on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4);
+        }
+        .action-button:disabled {
+            background-color: #9ca3af; /* Gray when disabled */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .modal-content input {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        .modal-content button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+        .modal-content button:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div class="quiz-header">
+            <div id="question-count" class="question-count"></div>
+            <div id="user-high-score" class="user-info"></div>
+            <div id="score-count" class="score-count"></div>
+            <button id="login-btn" class="login-button">
+                <i class="material-icons">person</i>
+            </button>
+        </div>
+
+        <div id="scenario-box" class="scenario-box"></div>
+
+        <div id="options-container" class="options-grid">
+            </div>
+
+        <div id="feedback-display" class="feedback-text"></div>
+        <button id="stage-action-btn" class="action-button hidden"></button>
+    </div>
+
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold text-gray-800">Enter Username</h2>
+            <input type="text" id="username-input" placeholder="Your Username" class="mt-2" />
+            <button id="save-username-btn">Save</button>
+        </div>
+    </div>
+
+    <script>
+        // Define the quiz questions, now organized into stages with names
+        const quizStages = [
+            {
+                name: "Hero Fundamentals",
+                questions: [
+                    {
+                        type: "multiple-choice",
+                        question: "Who is the gorilla scientist and leader of Overwatch?",
+                        options: ["Reinhardt", "Winston", "Doomfist", "Sigma"],
+                        answer: "Winston"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "Which hero can transform into a stationary turret and a tank?",
+                        options: ["Torbjörn", "Bastion", "Symmetra", "Orisa"],
+                        answer: "Bastion"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "What is Tracer's signature ability that allows her to rapidly move short distances?",
+                        options: ["Recall", "Blink", "Pulse Bomb", "Chronal Accelerator"],
+                        answer: "Blink"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "Which support hero can place a 'Teleporter' for their team?",
+                        options: ["Mercy", "Lucio", "Symmetra", "Zenyatta"],
+                        answer: "Symmetra"
+                    }
+                ]
+            },
+            {
+                name: "Map Knowledge & Tactics",
+                questions: [
+                    {
+                        type: "multiple-choice",
+                        question: "Which map features a payload that is a giant rocket ship?",
+                        options: ["King's Row", "Hollywood", "Watchpoint: Gibraltar", "Numbani"],
+                        answer: "Watchpoint: Gibraltar"
+                    },
+                    {
+                        type: "hotpoint",
+                        question: "Where should Bastion position himself on Watchpoint: Gibraltar (Attack) for optimal early defense break?",
+                        // Placeholder image for Watchpoint: Gibraltar map
+                        image: "https://placehold.co/800x450/e0e0e0/000000?text=Watchpoint+Gibraltar+Map+Attack",
+                        hotpoints: [
+                            // Coordinates are percentages relative to image width/height
+                            // (x, y, radius, isAnswer, label)
+                            { x: 25, y: 40, radius: 25, isAnswer: false, label: "A" }, // High ground left
+                            { x: 50, y: 65, radius: 25, isAnswer: true, label: "B" },  // Main choke point/payload path
+                            { x: 75, y: 40, radius: 25, isAnswer: false, label: "C" }   // High ground right
+                        ],
+                        correctHotpointLabel: "B" // Label of the correct hotpoint
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "What is the name of Reinhardt's ultimate ability, which stuns enemies in a cone?",
+                        options: ["Charge", "Fire Strike", "Barrier Field", "Earthshatter"],
+                        answer: "Earthshatter"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "Which hero is a former professional StarCraft player and mech pilot?",
+                        options: ["Zarya", "Pharah", "D.Va", "Mercy"],
+                        answer: "D.Va"
+                    },
+                    {
+                        type: "hotpoint",
+                        question: "On Dorado (Attack), where is a common high-ground position for a Widowmaker to snipe the first point?",
+                        image: "https://placehold.co/800x450/d0d0d0/000000?text=Dorado+Map+Attack+Point+1",
+                        hotpoints: [
+                            { x: 15, y: 50, radius: 25, isAnswer: false, label: "A" }, // Street level
+                            { x: 40, y: 20, radius: 25, isAnswer: true, label: "B" },  // High archway/rooftop
+                            { x: 70, y: 70, radius: 25, isAnswer: false, label: "C" }   // Lower path right
+                        ],
+                        correctHotpointLabel: "B"
+                    }
+                ]
+            },
+            {
+                name: "Abilities & Lore",
+                questions: [
+                    {
+                        type: "multiple-choice",
+                        question: "What is Mercy's primary healing ability called?",
+                        options: ["Biotic Grasp", "Caduceus Staff", "Healing Orb", "Repair Pack"],
+                        answer: "Caduceus Staff"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "Which hero uses a 'Soundwave' to knock enemies back?",
+                        options: ["Lucio", "Symmetra", "Zenyatta", "Moira"],
+                        answer: "Lucio"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "Which hero is known for their ability to 'Hack' enemies and health packs?",
+                        options: ["Sombra", "Reaper", "Genji", "Echo"],
+                        answer: "Sombra"
+                    },
+                    {
+                        type: "multiple-choice",
+                        question: "What is the name of Junkrat's explosive ultimate ability?",
+                        options: ["Rip-Tire", "Concussion Mine", "Steel Trap", "Frag Launcher"],
+                        answer: "Rip-Tire"
+                    }
+                ]
+            }
+        ];
+
+        // Define Kahoot-style button colors for visual variety
+        const buttonColors = ['btn-red', 'btn-blue', 'btn-yellow', 'btn-green'];
+
+        let currentStageIndex = 0;
+        let currentQuestionIndexInStage = 0;
+        let currentStageScore = 0; // Score for the current stage
+        let totalScore = 0; // Overall score across all stages
+        let selectedOption = null; // Stores the text/label of the currently selected option/hotpoint
+        let quizEnded = false;
+        let answerChecked = false;
+
+        let loggedInUser = null;
+        let userHighScore = 0;
+
+        // Get DOM elements
+        const questionCountDisplay = document.getElementById('question-count');
+        const scoreCountDisplay = document.getElementById('score-count');
+        const userHighScoreDisplay = document.getElementById('user-high-score');
+        const scenarioBox = document.getElementById('scenario-box');
+        const optionsContainer = document.getElementById('options-container');
+        const feedbackDisplay = document.getElementById('feedback-display');
+        const stageActionButton = document.getElementById('stage-action-btn'); // Renamed for stage/quiz actions
+        const loginButton = document.getElementById('login-btn');
+        const loginModal = document.getElementById('login-modal');
+        const usernameInput = document.getElementById('username-input');
+        const saveUsernameButton = document.getElementById('save-username-btn');
+
+        // --- Local Storage Functions ---
+        /**
+         * Saves user data (username and high score) to localStorage.
+         * @param {string} username - The username to save.
+         * @param {number} score - The high score to save for this user.
+         */
+        function saveUserData(username, score) {
+            const userData = JSON.parse(localStorage.getItem('quizUsers')) || {};
+            userData[username] = score;
+            localStorage.setItem('quizUsers', JSON.stringify(userData));
+            localStorage.setItem('lastLoggedInUser', username); // Save last logged in user
+        }
+
+        /**
+         * Loads user data (high score) from localStorage for a given username.
+         * @param {string} username - The username to load data for.
+         * @returns {number} The high score for the user, or 0 if not found.
+         */
+        function loadUserData(username) {
+            const userData = JSON.parse(localStorage.getItem('quizUsers')) || {};
+            return userData[username] || 0;
+        }
+
+        /**
+         * Updates the high score for the logged-in user if the new score is higher.
+         * @param {number} newScore - The score to compare against the current high score.
+         */
+        function updateHighScore(newScore) {
+            if (loggedInUser && newScore > userHighScore) {
+                userHighScore = newScore;
+                saveUserData(loggedInUser, userHighScore);
+                updateHeaderDisplays(); // Update header to show new high score
+            }
+        }
+
+        // --- Login Modal Functions ---
+        /**
+         * Shows the login modal.
+         */
+        function showLoginModal() {
+            loginModal.classList.remove('hidden');
+            usernameInput.value = loggedInUser || ''; // Pre-fill if already logged in
+            usernameInput.focus();
+        }
+
+        /**
+         * Hides the login modal and processes the username.
+         */
+        function hideLoginModal() {
+            loginModal.classList.add('hidden');
+            const username = usernameInput.value.trim();
+            if (username) {
+                loggedInUser = username;
+                userHighScore = loadUserData(loggedInUser);
+                saveUserData(loggedInUser, userHighScore); // Save to update lastLoggedInUser
+                updateHeaderDisplays();
+            } else {
+                // If username is cleared, log out
+                loggedInUser = null;
+                userHighScore = 0;
+                localStorage.removeItem('lastLoggedInUser');
+                updateHeaderDisplays();
+            }
+        }
+
+        // --- Quiz Core Logic ---
+        /**
+         * Loads and displays the current question and its options for the current stage.
+         * Resets feedback, selections, and button states for the new question.
+         */
+        function loadQuestion() {
+            // Hide action button if visible
+            stageActionButton.classList.add('hidden');
+
+            // Clear previous feedback and selections
+            feedbackDisplay.textContent = '';
+            feedbackDisplay.className = 'feedback-text'; // Reset classes to remove correct/incorrect styling
+            scenarioBox.innerHTML = ''; // Clear scenario box content
+            optionsContainer.innerHTML = ''; // Clear options grid (for multiple-choice)
+            selectedOption = null; // Reset selected option for the new question
+            answerChecked = false; // Reset answer checked flag
+
+            const currentStage = quizStages[currentStageIndex];
+            const currentStageQuestions = currentStage.questions;
+
+            // Check if all questions in the current stage have been answered
+            if (currentQuestionIndexInStage >= currentStageQuestions.length) {
+                endStage(); // If so, end the current stage
+                return;
+            }
+
+            const currentQuestion = currentStageQuestions[currentQuestionIndexInStage];
+
+            if (currentQuestion.type === "hotpoint") {
+                // Display question text
+                const questionTextElement = document.createElement('div');
+                questionTextElement.classList.add('text-2xl', 'font-bold', 'mb-4', 'text-white'); // Tailwind classes for question text
+                questionTextElement.textContent = currentQuestion.question;
+                scenarioBox.appendChild(questionTextElement);
+
+                // Create image container for hotpoints
+                const imageContainer = document.createElement('div');
+                imageContainer.classList.add('hotpoint-container'); // Use new hotpoint-container class
+                
+                const img = document.createElement('img');
+                img.src = currentQuestion.image;
+                img.alt = "Map for question";
+                img.classList.add('w-full', 'h-auto', 'block', 'rounded-xl'); // Ensure image is responsive
+                img.onerror = () => { // Fallback for image loading errors
+                    img.src = `https://placehold.co/800x450/e0e0e0/000000?text=Image+Not+Found`;
+                };
+
+                imageContainer.appendChild(img);
+                scenarioBox.appendChild(imageContainer);
+
+                // Add hotpoints
+                currentQuestion.hotpoints.forEach((hotpoint, index) => {
+                    const hotpointDiv = document.createElement('div');
+                    hotpointDiv.classList.add('hotpoint');
+                    hotpointDiv.style.width = `${hotpoint.radius * 2}px`;
+                    hotpointDiv.style.height = `${hotpoint.radius * 2}px`;
+                    // Position hotpoints relative to the image container
+                    hotpointDiv.style.left = `calc(${hotpoint.x}% - ${hotpoint.radius}px)`;
+                    hotpointDiv.style.top = `calc(${hotpoint.y}% - ${hotpoint.radius}px)`;
+                    hotpointDiv.style.backgroundColor = buttonColors[index % buttonColors.length]; // Use button colors for hotpoints
+                    hotpointDiv.textContent = hotpoint.label; // Label on hotpoint
+
+                    hotpointDiv.onclick = () => selectHotpoint(hotpointDiv, hotpoint.isAnswer, hotpoint.label);
+                    imageContainer.appendChild(hotpointDiv);
+                });
+
+            } else {
+                // Existing logic for multiple-choice questions
+                scenarioBox.textContent = currentQuestion.question; // Display the question text in the scenario box
+
+                // Create a button for each option with Kahoot-style colors
+                currentQuestion.options.forEach((option, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = option;
+                    // Add Kahoot-style color class based on index
+                    button.classList.add(buttonColors[index % buttonColors.length]);
+                    // Attach click event listener to each option button
+                    button.onclick = () => selectOption(button, option);
+                    optionsContainer.appendChild(button);
+                });
+            }
+
+            updateHeaderDisplays(); // Update the question count and score in the header
+        }
+
+        /**
+         * Handles the selection of a multiple-choice answer option.
+         * Visually marks the selected option, checks the answer, and then
+         * proceeds to the next question/stage after a delay.
+         * @param {HTMLButtonElement} clickedButton - The button element that was clicked.
+         * @param {string} optionText - The text content of the selected option.
+         */
+        function selectOption(clickedButton, optionText) {
+            if (answerChecked) return; // Prevent multiple submissions for the same question
+
+            // Remove 'selected' class from all options and reset feedback styles
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.classList.remove('selected', 'correct', 'incorrect');
+            });
+
+            // Add 'selected' class to the newly clicked button
+            clickedButton.classList.add('selected');
+            selectedOption = optionText; // Store the selected option's text
+
+            // Immediately check the answer
+            checkAnswer();
+
+            // After checking, disable all options to prevent further clicks on the current question
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.disabled = true;
+            });
+
+            // Delay moving to the next question/stage to allow the user to see the feedback
+            setTimeout(() => {
+                currentQuestionIndexInStage++; // Move to the next question index within the stage
+                loadQuestion(); // Attempt to load the next question (will call endStage if stage is done)
+            }, 1500); // 1.5 second delay to show feedback
+        }
+
+        /**
+         * Handles the selection of a hotpoint answer.
+         * Visually marks the selected hotpoint, checks the answer, and then
+         * proceeds to the next question/stage after a delay.
+         * @param {HTMLDivElement} clickedHotpoint - The hotpoint element that was clicked.
+         * @param {boolean} isCorrectHotpoint - True if this hotpoint is the correct answer.
+         * @param {string} hotpointLabel - The label of the selected hotpoint.
+         */
+        function selectHotpoint(clickedHotpoint, isCorrectHotpoint, hotpointLabel) {
+            if (answerChecked) return;
+
+            // Remove 'selected' class from all hotpoints
+            Array.from(scenarioBox.querySelectorAll('.hotpoint')).forEach(hp => {
+                hp.classList.remove('selected', 'correct', 'incorrect');
+            });
+            clickedHotpoint.classList.add('selected');
+
+            selectedOption = hotpointLabel; // Store the label as the selected option
+
+            // Immediately check the answer, passing correctness directly
+            checkAnswer(isCorrectHotpoint);
+
+            // Disable all hotpoints after selection
+            Array.from(scenarioBox.querySelectorAll('.hotpoint')).forEach(hp => {
+                hp.style.pointerEvents = 'none'; // Disable clicks
+            });
+
+            // Delay moving to the next question
+            setTimeout(() => {
+                currentQuestionIndexInStage++;
+                loadQuestion();
+            }, 1500);
+        }
+
+        /**
+         * Checks the selected answer against the correct answer.
+         * Updates the score and provides visual and text feedback.
+         * @param {boolean} [isHotpointCorrect=null] - Optional: For hotpoint questions, indicates if the selected hotpoint is correct.
+         */
+        function checkAnswer(isHotpointCorrect = null) {
+            let isCorrect;
+            const currentQuestion = quizStages[currentStageIndex].questions[currentQuestionIndexInStage];
+
+            if (currentQuestion.type === "hotpoint") {
+                isCorrect = isHotpointCorrect; // Use passed correctness for hotpoints
+            } else {
+                isCorrect = (selectedOption === currentQuestion.answer);
+            }
+
+            if (isCorrect) {
+                currentStageScore++; // Increment score for the current stage
+                totalScore++; // Increment overall score
+                feedbackDisplay.textContent = 'Correct!';
+                feedbackDisplay.classList.add('correct');
+            } else {
+                if (currentQuestion.type === "hotpoint") {
+                    feedbackDisplay.textContent = `Incorrect. The correct area was labeled: "${currentQuestion.correctHotpointLabel}"`;
+                } else {
+                    feedbackDisplay.textContent = `Incorrect. The correct answer was: "${currentQuestion.answer}"`;
+                }
+                feedbackDisplay.classList.add('incorrect');
+            }
+
+            // Apply visual feedback based on question type
+            if (currentQuestion.type === "hotpoint") {
+                Array.from(scenarioBox.querySelectorAll('.hotpoint')).forEach(hp => {
+                    if (hp.textContent === currentQuestion.correctHotpointLabel) {
+                        hp.classList.add('correct');
+                    } else if (hp.classList.contains('selected') && !isCorrect) {
+                        hp.classList.add('incorrect');
+                    }
+                });
+            } else {
+                Array.from(optionsContainer.children).forEach(btn => {
+                    if (btn.textContent === currentQuestion.answer) {
+                        btn.classList.add('correct');
+                    } else if (btn.textContent === selectedOption && !isCorrect) {
+                        btn.classList.add('incorrect');
+                    }
+                });
+            }
+
+            answerChecked = true; // Set flag to true after checking
+            updateHeaderDisplays(); // Update the score in the header
+        }
+
+        /**
+         * Handles the completion of a stage.
+         * Displays stage score and a "Next Stage" or "Play Again" button.
+         */
+        function endStage() {
+            const currentStage = quizStages[currentStageIndex];
+            scenarioBox.textContent = `${currentStage.name} Complete!`; // Use stage name
+            optionsContainer.innerHTML = ''; // Clear options
+            feedbackDisplay.textContent = `You scored ${currentStageScore} out of ${currentStage.questions.length} in this stage!`;
+            feedbackDisplay.classList.add('correct'); // Green for stage score message
+
+            updateHighScore(totalScore); // Update high score for the logged-in user
+
+            stageActionButton.classList.remove('hidden'); // Show the action button
+
+            if (currentStageIndex < quizStages.length - 1) {
+                // If there are more stages
+                stageActionButton.textContent = 'Next Stage';
+                stageActionButton.onclick = nextStage;
+            } else {
+                // If this is the last stage
+                endQuiz(); // Call endQuiz for final summary
+            }
+        }
+
+        /**
+         * Advances to the next stage of the quiz.
+         * Resets stage-specific variables and loads the first question of the new stage.
+         */
+        function nextStage() {
+            currentStageIndex++; // Move to the next stage
+            currentQuestionIndexInStage = 0; // Reset question index for the new stage
+            currentStageScore = 0; // Reset stage score
+            loadQuestion(); // Load the first question of the new stage
+        }
+
+        /**
+         * Displays the final overall score and a "Play Again" button when the quiz ends.
+         */
+        function endQuiz() {
+            quizEnded = true; // Set quiz ended flag
+            scenarioBox.textContent = 'Quiz Completed!'; // Update scenario box
+            optionsContainer.innerHTML = ''; // Clear options
+            // Calculate total possible questions across all stages
+            const totalPossibleQuestions = quizStages.reduce((acc, stage) => acc + stage.questions.length, 0);
+            feedbackDisplay.textContent = `Your total score: ${totalScore} out of ${totalPossibleQuestions}!`; // Display final overall score
+            feedbackDisplay.classList.add('correct'); // Green for final score message
+
+            questionCountDisplay.textContent = ''; // Clear question count
+            scoreCountDisplay.textContent = `Final Score: ${totalScore}`; // Update score display
+
+            stageActionButton.classList.remove('hidden');
+            stageActionButton.textContent = 'Play Again'; // Change button text
+            stageActionButton.onclick = restartQuiz; // Change button action to restart
+        }
+
+        /**
+         * Restarts the quiz from the beginning.
+         * Resets all quiz variables and loads the first question of the first stage.
+         */
+        function restartQuiz() {
+            currentStageIndex = 0;
+            currentQuestionIndexInStage = 0;
+            currentStageScore = 0;
+            totalScore = 0;
+            selectedOption = null;
+            quizEnded = false;
+            answerChecked = false;
+            loadQuestion(); // Load the first question of the first stage
+        }
+
+        /**
+         * Updates the question count, overall score, and user high score displays in the header.
+         */
+        function updateHeaderDisplays() {
+            if (!quizEnded) {
+                const currentStage = quizStages[currentStageIndex];
+                questionCountDisplay.textContent = `${currentStage.name} - Q ${currentQuestionIndexInStage + 1} of ${currentStage.questions.length}`;
+                scoreCountDisplay.textContent = `Score: ${totalScore}`;
+            }
+
+            if (loggedInUser) {
+                userHighScoreDisplay.innerHTML = `Logged in as: <span class="text-blue-700">${loggedInUser}</span><br>High Score: ${userHighScore}`;
+            } else {
+                // Removed "Not logged in" text
+                userHighScoreDisplay.textContent = '';
+            }
+        }
+
+        // --- Event Listeners ---
+        loginButton.addEventListener('click', showLoginModal);
+        saveUsernameButton.addEventListener('click', hideLoginModal);
+        // Allow closing modal by clicking outside or pressing Escape
+        loginModal.addEventListener('click', (e) => {
+            if (e.target === loginModal) {
+                hideLoginModal();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !loginModal.classList.contains('hidden')) {
+                hideLoginModal();
+            }
+        });
+
+        // Initial setup when the page loads
+        window.onload = () => {
+            // Load last logged-in user if exists, but DO NOT show modal
+            loggedInUser = localStorage.getItem('lastLoggedInUser');
+            if (loggedInUser) {
+                userHighScore = loadUserData(loggedInUser);
+                usernameInput.value = loggedInUser; // Pre-fill for convenience
+            }
+            loadQuestion(); // Start the quiz
+        };
+    </script>
+</body>
+</html>
